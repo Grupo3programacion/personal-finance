@@ -5,18 +5,45 @@ import { useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ArrowUpCircle, ArrowDownCircle } from "lucide-react"
+import { ArrowUpCircle, ArrowDownCircle, MoreHorizontal } from "lucide-react"
 import { getTransactions, type Transaction } from "@/lib/data"
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+
+import { EditTransactionModal } from "@/components/edit-transaction-modal"
+
+type TypeFilter = "all" | "income" | "expense"
 
 interface TransactionListProps {
   selectedMonth: string
   transactions: Transaction[]
+  categories: { income: string[]; expense: string[] }
+  onChanged: () => Promise<any> | any
 }
 
-type TypeFilter = "all" | "income" | "expense"
-
-export function TransactionList({ selectedMonth, transactions }: TransactionListProps) {
+export function TransactionList({ selectedMonth, transactions, categories, onChanged }: TransactionListProps) {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all")
+
+  const [editing, setEditing] = useState<Transaction | null>(null)
+  const [deleting, setDeleting] = useState<Transaction | null>(null)
+
+  
 
   const monthTransactions = useMemo(
     () => getTransactions(selectedMonth, transactions),
@@ -59,7 +86,11 @@ export function TransactionList({ selectedMonth, transactions }: TransactionList
               className="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
             >
               <div className="flex items-center gap-4">
-                <div className={`rounded-lg p-2 ${transaction.type === "income" ? "bg-success/10" : "bg-destructive/10"}`}>
+                <div
+                  className={`rounded-lg p-2 ${
+                    transaction.type === "income" ? "bg-success/10" : "bg-destructive/10"
+                  }`}
+                >
                   {transaction.type === "income" ? (
                     <ArrowUpCircle className="size-5 text-success" />
                   ) : (
@@ -78,9 +109,29 @@ export function TransactionList({ selectedMonth, transactions }: TransactionList
                 </div>
               </div>
 
-              <p className={`text-lg font-semibold ${transaction.type === "income" ? "text-success" : "text-destructive"}`}>
-                {transaction.type === "income" ? "+" : "-"}${transaction.amount.toLocaleString("es-ES")}
-              </p>
+              <div className="flex items-center gap-2">
+                <p
+                  className={`text-lg font-semibold ${
+                    transaction.type === "income" ? "text-success" : "text-destructive"
+                  }`}
+                >
+                  {transaction.type === "income" ? "+" : "-"}${transaction.amount.toLocaleString("es-ES")}
+                </p>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setEditing(transaction)}>Editar</DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onClick={() => setDeleting(transaction)}>
+                      Eliminar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           ))}
 
@@ -89,6 +140,40 @@ export function TransactionList({ selectedMonth, transactions }: TransactionList
               No hay transacciones para este filtro en el mes seleccionado.
             </div>
           )}
+
+          {/* Modales deben ir fuera del map, pero dentro del CardContent */}
+          {editing && (
+            <EditTransactionModal
+              open={!!editing}
+              onOpenChange={(v) => !v && setEditing(null)}
+              transaction={editing}
+              categories={categories}
+              onSaved={onChanged}
+            />
+          )}
+
+          <AlertDialog open={!!deleting} onOpenChange={(v) => !v && setDeleting(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar transacción?</AlertDialogTitle>
+                <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setDeleting(null)}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    if (!deleting) return
+                    const res = await fetch(`/api/transactions/${deleting.id}`, { method: "DELETE" })
+                    if (!res.ok) console.error(await res.json())
+                    setDeleting(null)
+                    await onChanged()
+                  }}
+                >
+                  Eliminar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </CardContent>
     </Card>

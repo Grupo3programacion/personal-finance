@@ -1,9 +1,12 @@
+import { createSupabaseServer } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
 import { FinanceDashboard } from "@/components/finance-dashboard"
 
-export default function Home() {
-  return (
-    <main className="min-h-screen bg-background">
-      <FinanceDashboard />
-    </main>
-  )
+export default async function HomePage() {
+  const supabase = await createSupabaseServer()
+  const { data } = await supabase.auth.getUser()
+
+  if (!data.user) redirect("/auth/login")
+
+  return <FinanceDashboard />
 }

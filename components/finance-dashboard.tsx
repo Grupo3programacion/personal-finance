@@ -9,45 +9,54 @@ import { ChartSection } from "@/components/chart-section"
 import { MonthSelector } from "@/components/month-selector"
 import { AddTransactionModal } from "@/components/add-transaction-modal"
 import { DollarSign } from "lucide-react"
-import { initialTransactions, type Transaction } from "@/lib/data"
+import useSWR from "swr"
+import type { Transaction } from "@/lib/data"
+
+
+const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 export function FinanceDashboard() {
   const now = new Date()
   const [selectedMonth, setSelectedMonth] = useState(
   `${String(now.getMonth() + 1).padStart(2, "0")}-${now.getFullYear()}`
 )
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions)
+  
+  const { data: transactions = [], mutate } = useSWR<Transaction[]>(
+    `/api/transactions?month=${selectedMonth}`,
+    fetcher
+  )
 
-  const handleAddTransaction = (newTransaction: Omit<Transaction, "id">) => {
-    const transaction: Transaction = {
-      ...newTransaction,
-      id: Date.now().toString(),
-    }
+  const { data: expenseCats = [], mutate: mutateExpenseCats } = useSWR<string[]>(
+  "/api/categories?type=expense",
+  fetcher
+)
+
+const { data: incomeCats = [], mutate: mutateIncomeCats } = useSWR<string[]>(
+  "/api/categories?type=income",
+  fetcher
+)
+
+  const categories = {
+  expense: expenseCats,
+  income: incomeCats,
+}
+
+  const onAddCategory = async (type: "income" | "expense", _name: string) => {
+  // revalida el tipo correspondiente para que aparezca en el próximo modal
+  if (type === "income") await mutateIncomeCats()
+  else await mutateExpenseCats()
+}
+
   
-    setTransactions((prev) => [transaction, ...prev])
-  
-    const [, mm, yyyy] = transaction.date.split("/") // "dd/mm/yyyy"
+
+  //
+  const handleAddTransaction = async (newTransaction: Omit<Transaction, "id">) => {
+    const [, mm, yyyy] = newTransaction.date.split("/")
     if (mm && yyyy) setSelectedMonth(`${mm}-${yyyy}`)
-  }
 
-  const initialCategories = {
-    expense: ["Alimentación","Vivienda","Transporte","Servicios","Salud","Ocio","Compras","Educación","Otros"],
-    income: ["Salario","Freelance","Inversiones","Bonus","Otros"],
+    // refresca lista desde BD
+    await mutate()
   }
-  
-  const [categories, setCategories] = useState(initialCategories)
-  
-  const handleAddCategory = (type: "income" | "expense", name: string) => {
-    const trimmed = name.trim()
-    if (!trimmed) return
-  
-    setCategories((prev) => {
-      const list = prev[type]
-      if (list.some((c) => c.toLowerCase() === trimmed.toLowerCase())) return prev
-      return { ...prev, [type]: [trimmed, ...list] }
-    })
-  }
-
 
   return (
     <div className="min-h-screen bg-background">
@@ -67,7 +76,7 @@ export function FinanceDashboard() {
             <AddTransactionModal
               onAdd={handleAddTransaction}
               categories={categories}
-              onAddCategory={handleAddCategory}
+              onAddCategory={onAddCategory}
             />
               <MonthSelector value={selectedMonth} onChange={setSelectedMonth} transactions={transactions} />
             </div>
@@ -89,7 +98,12 @@ export function FinanceDashboard() {
           </TabsContent>
 
           <TabsContent value="transactions" className="mt-6">
-            <TransactionList selectedMonth={selectedMonth} transactions={transactions} />
+            <TransactionList
+              selectedMonth={selectedMonth}
+              transactions={transactions}
+              categories={categories}
+              onChanged={mutate}
+            />
           </TabsContent>
         </Tabs>
       </div>

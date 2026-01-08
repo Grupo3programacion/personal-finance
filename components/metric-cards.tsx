@@ -34,17 +34,17 @@ export function MetricCards({ selectedMonth, transactions }: MetricCardsProps) {
       color: "text-destructive",
       bgColor: "bg-destructive/10",
     },
-    {
+    /* {
       title: "Ahorro Estimado",
       value: data.savings,
       icon: PiggyBank,
       color: "text-accent",
       bgColor: "bg-accent/10",
-    },
+    }, */
   ]
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {metrics.map((metric, index) => (
         <Card key={index}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

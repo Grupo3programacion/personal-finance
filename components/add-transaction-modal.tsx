@@ -1,3 +1,5 @@
+//components/add-transaction-modal.tsx
+
 "use client"
 
 import type React from "react"
@@ -31,7 +33,7 @@ export function AddTransactionModal({ onAdd, categories, onAddCategory }: AddTra
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
   const [category, setCategory] = useState("")
 
-  // ✅ nueva categoría
+  // nueva categoría
   const [addingCat, setAddingCat] = useState(false)
   const [newCat, setNewCat] = useState("")
 
@@ -40,40 +42,71 @@ export function AddTransactionModal({ onAdd, categories, onAddCategory }: AddTra
     [type, categories]
   )
 
-  const handleCreateCategory = () => {
-    const trimmed = newCat.trim()
-    if (!trimmed) return
+  const handleCreateCategory = async () => {
+  const trimmed = newCat.trim()
+  if (!trimmed) return
 
-    onAddCategory(type, trimmed)
-    setCategory(trimmed) // selecciona la nueva automáticamente
-    setNewCat("")
-    setAddingCat(false)
+  const res = await fetch("/api/categories", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: trimmed, type }),
+  })
+
+  if (!res.ok) {
+    console.error(await res.json())
+    return
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!description || !amount || !category) return
+  //también actualiza UI local (pero lo importante es refrescar categorías)
+  onAddCategory(type, trimmed)
 
-    const [year, month, day] = date.split("-")
-    const formattedDate = `${day}/${month}/${year}`
+  setCategory(trimmed)
+  setNewCat("")
+  setAddingCat(false)
+}
 
-    onAdd({
-      date: formattedDate,
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  if (!description || !amount || !category) return
+
+  const res = await fetch("/api/transactions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      date, // YYYY-MM-DD
       description,
-      amount: Number.parseFloat(amount),
+      amount: Number(amount),
       type,
-      category,
-    })
+      categoryName: category,
+    }),
+  })
 
-    // Reset form
-    setDescription("")
-    setAmount("")
-    setCategory("")
-    setDate(new Date().toISOString().split("T")[0])
-    setAddingCat(false)
-    setNewCat("")
-    setOpen(false)
+  if (!res.ok) {
+    // aquí puedes usar toast si quieres
+    console.error(await res.json())
+    return
   }
+
+  // mantener onAdd para refrescar UI rápido:
+  const created = await res.json()
+  onAdd({
+    date: created.date, // ya viene dd/mm/yyyy desde el API
+    description: created.description,
+    amount: created.amount,
+    type: created.type,
+    category: created.category,
+  })
+
+  // Reset form
+  setDescription("")
+  setAmount("")
+  setCategory("")
+  setDate(new Date().toISOString().split("T")[0])
+  setAddingCat(false)
+  setNewCat("")
+  setOpen(false)
+}
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
