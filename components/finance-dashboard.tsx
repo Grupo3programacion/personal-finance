@@ -11,6 +11,10 @@ import { AddTransactionModal } from "@/components/add-transaction-modal"
 import { DollarSign } from "lucide-react"
 import useSWR from "swr"
 import type { Transaction } from "@/lib/data"
+import { useRouter } from "next/navigation"
+import { logout } from "@/lib/auth/logout"
+import { LogOut } from "lucide-react"
+import { Button } from "./ui/button"
 
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
@@ -39,6 +43,13 @@ const { data: incomeCats = [], mutate: mutateIncomeCats } = useSWR<string[]>(
   const categories = {
   expense: expenseCats,
   income: incomeCats,
+}
+
+const router = useRouter()
+
+const handleLogout = async () => {
+  await logout()
+  router.push("/auth/login")
 }
 
   const onAddCategory = async (type: "income" | "expense", _name: string) => {
@@ -72,13 +83,17 @@ const { data: incomeCats = [], mutate: mutateIncomeCats } = useSWR<string[]>(
                 <p className="text-sm text-muted-foreground">Gestiona tus ingresos y egresos</p>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
             <AddTransactionModal
               onAdd={handleAddTransaction}
               categories={categories}
               onAddCategory={onAddCategory}
             />
               <MonthSelector value={selectedMonth} onChange={setSelectedMonth} transactions={transactions} />
+              <Button variant="outline" onClick={handleLogout} className="gap-2 bg-red-600 text-white hover:bg-red-700">
+                <LogOut className="size-4" />
+                Salir
+            </Button>
             </div>
           </div>
         </div>

@@ -1,43 +1,52 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServer } from "@/lib/supabase/server"
 
-function devUserId() {
-  return process.env.DEV_USER_ID!
+async function requireUser(supabase: any) {
+  const { data, error } = await supabase.auth.getUser()
+  if (error) return { user: null as any, error: error.message }
+  if (!data?.user) return { user: null as any, error: "unauthorized" }
+  return { user: data.user, error: null as string | null }
 }
 
 export async function GET(req: Request) {
   const supabase = await createSupabaseServer()
+  const { user, error: authErr } = await requireUser(supabase)
+  if (authErr) return NextResponse.json({ error: authErr }, { status: 401 })
+
   const { searchParams } = new URL(req.url)
   const type = searchParams.get("type") // income|expense|null
 
-  const query = supabase
+  let query = supabase
     .from("categories")
-    .select("id,name,type")
-    .eq("user_id", devUserId())
+    .select("name,type")
+    .eq("user_id", user.id)
     .order("name", { ascending: true })
 
-  const { data, error } = type ? await query.eq("type", type) : await query
+  if (type) query = query.eq("type", type)
+
+  const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const names = (data ?? []).map((c) => c.name)
-  return NextResponse.json(names)
+  return NextResponse.json((data ?? []).map((c: any) => c.name))
 }
 
 export async function POST(req: Request) {
   const supabase = await createSupabaseServer()
-  const body = await req.json()
+  const { user, error: authErr } = await requireUser(supabase)
+  if (authErr) return NextResponse.json({ error: authErr }, { status: 401 })
 
+  const body = await req.json()
   const name = String(body.name ?? "").trim()
   const type = body.type as "income" | "expense"
+
   if (!name || (type !== "income" && type !== "expense")) {
     return NextResponse.json({ error: "name/type invalid" }, { status: 400 })
   }
 
-  // upsert por unique(user_id,name,type)
   const { data, error } = await supabase
     .from("categories")
     .upsert(
-      { user_id: devUserId(), name, type },
+      { user_id: user.id, name, type },
       { onConflict: "user_id,name,type" }
     )
     .select("id,name,type")

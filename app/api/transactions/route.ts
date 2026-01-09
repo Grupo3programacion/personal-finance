@@ -1,28 +1,35 @@
-//app/api/transactions/route.ts
-
 import { NextResponse } from "next/server"
 import { createSupabaseServer } from "@/lib/supabase/server"
 
-function devUserId() {
-  return process.env.DEV_USER_ID!
+async function requireUser(supabase: any) {
+  const { data, error } = await supabase.auth.getUser()
+  if (error) return { user: null as any, error: error.message }
+  if (!data?.user) return { user: null as any, error: "unauthorized" }
+  return { user: data.user, error: null as string | null }
 }
 
 function monthRange(monthKey: string) {
-  // "MM-YYYY"
   const [mmStr, yyyyStr] = monthKey.split("-")
   const mm = Number(mmStr)
   const yyyy = Number(yyyyStr)
   const start = new Date(yyyy, mm - 1, 1)
   const end = new Date(yyyy, mm, 1)
-  return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) } // YYYY-MM-DD
+  return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) }
+}
+
+function formatDDMMYYYY(isoDate: string) {
+  const [y, m, d] = isoDate.split("-")
+  return `${d}/${m}/${y}`
 }
 
 export async function GET(req: Request) {
   const supabase = await createSupabaseServer()
-  const { searchParams } = new URL(req.url)
+  const { user, error: authErr } = await requireUser(supabase)
+  if (authErr) return NextResponse.json({ error: authErr }, { status: 401 })
 
-  const month = searchParams.get("month") // "MM-YYYY"
-  const type = searchParams.get("type") // income|expense|null
+  const { searchParams } = new URL(req.url)
+  const month = searchParams.get("month")
+  const type = searchParams.get("type")
 
   if (!month) return NextResponse.json({ error: "month required" }, { status: 400 })
 
@@ -30,8 +37,8 @@ export async function GET(req: Request) {
 
   let q = supabase
     .from("transactions")
-    .select("id,date,description,amount,type,category:categories(id,name,type)")
-    .eq("user_id", devUserId())
+    .select("id,date,description,amount,type,category:categories(name)")
+    .eq("user_id", user.id)
     .gte("date", start)
     .lt("date", end)
     .order("date", { ascending: false })
@@ -41,23 +48,31 @@ export async function GET(req: Request) {
   const { data, error } = await q
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // map para tu UI: category name directo
-  const mapped = (data ?? []).map((t: any) => ({
-    id: t.id,
-    date: formatDDMMYYYY(t.date), // guardas en UI dd/mm/yyyy
-    description: t.description,
-    amount: Number(t.amount),
-    type: t.type,
-    category: t.category?.name ?? "Sin categoría",
-  }))
+  const mapped = (data ?? []).map((t: any) => {
+    // category puede venir como objeto o array según tipado
+    const catName =
+      Array.isArray(t.category) ? t.category?.[0]?.name :
+      t.category?.name
+
+    return {
+      id: t.id,
+      date: formatDDMMYYYY(t.date),
+      description: t.description,
+      amount: Number(t.amount),
+      type: t.type,
+      category: catName ?? "Sin categoría",
+    }
+  })
 
   return NextResponse.json(mapped)
 }
 
 export async function POST(req: Request) {
   const supabase = await createSupabaseServer()
+  const { user, error: authErr } = await requireUser(supabase)
+  if (authErr) return NextResponse.json({ error: authErr }, { status: 401 })
+
   const body = await req.json()
-  // body: { date:"YYYY-MM-DD", description, amount, type, categoryName }
 
   const date = String(body.date ?? "")
   const description = String(body.description ?? "").trim()
@@ -69,14 +84,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid payload" }, { status: 400 })
   }
 
-  // 1) upsert category
+  // 1) upsert category para este usuario
   const { data: cat, error: catErr } = await supabase
     .from("categories")
     .upsert(
-      { user_id: devUserId(), name: categoryName, type },
+      { user_id: user.id, name: categoryName, type },
       { onConflict: "user_id,name,type" }
     )
-    .select("id,name,type")
+    .select("id")
     .single()
 
   if (catErr) return NextResponse.json({ error: catErr.message }, { status: 500 })
@@ -85,8 +100,8 @@ export async function POST(req: Request) {
   const { data: tx, error: txErr } = await supabase
     .from("transactions")
     .insert({
-      user_id: devUserId(),
-      date, // YYYY-MM-DD
+      user_id: user.id,
+      date,
       description,
       amount,
       type,
@@ -108,10 +123,4 @@ export async function POST(req: Request) {
     },
     { status: 201 }
   )
-}
-
-function formatDDMMYYYY(isoDate: string) {
-  // "YYYY-MM-DD"
-  const [y, m, d] = isoDate.split("-")
-  return `${d}/${m}/${y}`
 }
