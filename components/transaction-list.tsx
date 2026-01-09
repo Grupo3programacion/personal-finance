@@ -164,7 +164,11 @@ export function TransactionList({ selectedMonth, transactions, categories, onCha
                   onClick={async () => {
                     if (!deleting) return
                     const res = await fetch(`/api/transactions/${deleting.id}`, { method: "DELETE" })
-                    if (!res.ok) console.error(await res.json())
+                    if (!res.ok) {
+                      const text = await res.text()
+                      console.error("DELETE failed:", res.status, text)
+                      return
+                    }
                     setDeleting(null)
                     await onChanged()
                   }}
