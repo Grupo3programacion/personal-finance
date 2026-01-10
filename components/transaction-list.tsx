@@ -75,7 +75,7 @@ export function TransactionList({
             <CardDescription>Todas las transacciones del mes seleccionado</CardDescription>
           </div>
 
-          <div className="flex gap-2">
+         <div className="flex w-full flex-wrap gap-2 md:w-auto md:flex-nowrap">
             <Button variant={typeFilter === "all" ? "default" : "outline"} onClick={() => onTypeFilterChange("all")}>
               Todas
             </Button>
@@ -94,11 +94,13 @@ export function TransactionList({
           {filtered.map((transaction) => (
             <div
               key={transaction.id}
-              className="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
+              className="rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
             >
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              {/* IZQUIERDA */}
+              <div className="flex min-w-0 items-start gap-3 md:items-center">
                 <div
-                  className={`rounded-lg p-2 ${
+                  className={`shrink-0 rounded-lg p-2 ${
                     transaction.type === "income" ? "bg-success/10" : "bg-destructive/10"
                   }`}
                 >
@@ -109,9 +111,9 @@ export function TransactionList({
                   )}
                 </div>
 
-                <div>
-                  <p className="font-medium text-foreground">{transaction.description}</p>
-                  <div className="mt-1 flex items-center gap-2">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-foreground">{transaction.description}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
                     <p className="text-sm text-muted-foreground">{transaction.date}</p>
                     <Badge variant="secondary" className="text-xs">
                       {transaction.category}
@@ -123,9 +125,10 @@ export function TransactionList({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+
+              <div className="flex items-center justify-end gap-2 md:justify-start">
                 <p
-                  className={`text-lg font-semibold ${
+                  className={`whitespace-nowrap text-lg font-semibold ${
                     transaction.type === "income" ? "text-success" : "text-destructive"
                   }`}
                 >
@@ -134,7 +137,7 @@ export function TransactionList({
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" className="shrink-0">
                       <MoreHorizontal className="size-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -146,6 +149,7 @@ export function TransactionList({
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
+            </div>
             </div>
           ))}
 
