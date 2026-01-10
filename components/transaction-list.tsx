@@ -28,17 +28,28 @@ import {
 
 import { EditTransactionModal } from "@/components/edit-transaction-modal"
 
-type TypeFilter = "all" | "income" | "expense"
+export type TypeFilter = "all" | "income" | "expense"
 
 interface TransactionListProps {
   selectedMonth: string
   transactions: Transaction[]
   categories: { income: string[]; expense: string[] }
   onChanged: () => Promise<any> | any
+
+  typeFilter: TypeFilter
+  onTypeFilterChange: (v: TypeFilter) => void
+  
 }
 
-export function TransactionList({ selectedMonth, transactions, categories, onChanged }: TransactionListProps) {
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all")
+export function TransactionList({
+  selectedMonth,
+  transactions,
+  categories,
+  onChanged,
+  typeFilter,
+  onTypeFilterChange,
+}: TransactionListProps) {
+  
 
   const [editing, setEditing] = useState<Transaction | null>(null)
   const [deleting, setDeleting] = useState<Transaction | null>(null)
@@ -65,13 +76,13 @@ export function TransactionList({ selectedMonth, transactions, categories, onCha
           </div>
 
           <div className="flex gap-2">
-            <Button variant={typeFilter === "all" ? "default" : "outline"} onClick={() => setTypeFilter("all")}>
+            <Button variant={typeFilter === "all" ? "default" : "outline"} onClick={() => onTypeFilterChange("all")}>
               Todas
             </Button>
-            <Button variant={typeFilter === "income" ? "default" : "outline"} onClick={() => setTypeFilter("income")}>
+            <Button variant={typeFilter === "income" ? "default" : "outline"} onClick={() => onTypeFilterChange("income")}>
               Ingresos
             </Button>
-            <Button variant={typeFilter === "expense" ? "default" : "outline"} onClick={() => setTypeFilter("expense")}>
+            <Button variant={typeFilter === "expense" ? "default" : "outline"} onClick={() => onTypeFilterChange("expense")}>
               Egresos
             </Button>
           </div>
@@ -105,6 +116,9 @@ export function TransactionList({ selectedMonth, transactions, categories, onCha
                     <Badge variant="secondary" className="text-xs">
                       {transaction.category}
                     </Badge>
+                    <Badge variant="outline" className="text-xs">
+                    {transaction.paymentType === "bank" ? `Bancarizado${transaction.bank ? ` • ${transaction.bank}` : ""}` : "Efectivo"}
+                  </Badge>
                   </div>
                 </div>
               </div>
@@ -144,6 +158,7 @@ export function TransactionList({ selectedMonth, transactions, categories, onCha
           {/* Modales deben ir fuera del map, pero dentro del CardContent */}
           {editing && (
             <EditTransactionModal
+              key={editing.id}
               open={!!editing}
               onOpenChange={(v) => !v && setEditing(null)}
               transaction={editing}

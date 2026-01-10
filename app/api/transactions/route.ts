@@ -37,7 +37,7 @@ export async function GET(req: Request) {
 
   let q = supabase
     .from("transactions")
-    .select("id,date,description,amount,type,category:categories(name)")
+    .select("id,date,description,amount,type,payment_type,bank,category:categories(name)")
     .eq("user_id", user.id)
     .gte("date", start)
     .lt("date", end)
@@ -61,6 +61,8 @@ export async function GET(req: Request) {
       amount: Number(t.amount),
       type: t.type,
       category: catName ?? "Sin categoría",
+      paymentType: t.payment_type,
+      bank: t.bank ?? null, 
     }
   })
 
@@ -79,6 +81,22 @@ export async function POST(req: Request) {
   const amount = Number(body.amount)
   const type = body.type as "income" | "expense"
   const categoryName = String(body.categoryName ?? "").trim()
+
+  const paymentType = (body.paymentType as "cash" | "bank") ?? "cash"
+  const bank = body.bank ? String(body.bank).trim() : null
+
+  if (paymentType !== "cash" && paymentType !== "bank") {
+    return NextResponse.json({ error: "invalid paymentType" }, { status: 400 })
+  }
+
+  if (paymentType === "bank" && !bank) {
+    return NextResponse.json({ error: "bank required when paymentType=bank" }, { status: 400 })
+  }
+
+  if (paymentType === "cash") {
+    // fuerza a null para cumplir constraint
+    // eslint-disable-next-line no-param-reassign
+  }
 
   if (!date || !description || !categoryName || !Number.isFinite(amount)) {
     return NextResponse.json({ error: "invalid payload" }, { status: 400 })
@@ -106,6 +124,8 @@ export async function POST(req: Request) {
       amount,
       type,
       category_id: cat.id,
+      payment_type: paymentType,
+      bank: paymentType === "bank" ? bank : null,
     })
     .select("id,date,description,amount,type")
     .single()
@@ -120,6 +140,8 @@ export async function POST(req: Request) {
       amount: Number(tx.amount),
       type: tx.type,
       category: categoryName,
+      paymentType,
+      bank: paymentType === "bank" ? bank : null,
     },
     { status: 201 }
   )

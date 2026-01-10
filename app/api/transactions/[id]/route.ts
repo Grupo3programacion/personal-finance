@@ -48,6 +48,17 @@ export async function PATCH(req: Request, ctx: any) {
   const type = body.type as ("income" | "expense" | undefined)
   const categoryName = body.categoryName !== undefined ? String(body.categoryName).trim() : undefined
 
+  const paymentType = body.paymentType as ("cash" | "bank" | undefined)
+  const bank = body.bank !== undefined ? (body.bank ? String(body.bank).trim() : null) : undefined
+
+  if (paymentType && paymentType !== "cash" && paymentType !== "bank") {
+    return NextResponse.json({ error: "invalid paymentType" }, { status: 400 })
+  }
+
+  if (paymentType === "bank" && (!bank || bank.length === 0)) {
+    return NextResponse.json({ error: "bank required when paymentType=bank" }, { status: 400 })
+  }
+
   // si mandan type + categoryName, resolvemos category_id
   let category_id: string | undefined
   if (type && categoryName) {
@@ -71,14 +82,20 @@ export async function PATCH(req: Request, ctx: any) {
   if (type) updateData.type = type
   if (category_id) updateData.category_id = category_id
 
+  if (paymentType) updateData.payment_type = paymentType
+  if (bank !== undefined) {
+    updateData.bank = paymentType === "cash" ? null : bank
+  }
+
   const { data, error } = await supabase
     .from("transactions")
     .update(updateData)
     .eq("id", id)
     .eq("user_id", user.id)
-    .select("id,date,description,amount,type")
+    .select("id,date,description,amount,type,payment_type,bank")
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    
   return NextResponse.json(data)
 }

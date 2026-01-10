@@ -7,6 +7,8 @@ export interface Transaction {
   amount: number
   type: "income" | "expense"
   category: string
+  paymentType?: "cash" | "bank"
+  bank?: string | null
 }
 
 

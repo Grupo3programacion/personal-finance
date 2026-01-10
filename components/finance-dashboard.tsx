@@ -4,7 +4,7 @@
 import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MetricCards } from "@/components/metric-cards"
-import { TransactionList } from "@/components/transaction-list"
+import { TransactionList, type TypeFilter } from "@/components/transaction-list"
 import { ChartSection } from "@/components/chart-section"
 import { MonthSelector } from "@/components/month-selector"
 import { AddTransactionModal } from "@/components/add-transaction-modal"
@@ -29,6 +29,10 @@ export function FinanceDashboard() {
     `/api/transactions?month=${selectedMonth}`,
     fetcher
   )
+
+   // tab controlado + filtro global
+  const [tab, setTab] = useState<"overview" | "transactions">("overview")
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all")
 
   const { data: expenseCats = [], mutate: mutateExpenseCats } = useSWR<string[]>(
   "/api/categories?type=expense",
@@ -69,6 +73,12 @@ const handleLogout = async () => {
     await mutate()
   }
 
+  // navegar desde cards -> tab transacciones + filtro
+  const handleMetricNavigate = (next: TypeFilter) => {
+    setTab("transactions")
+    setTypeFilter(next)
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
@@ -100,9 +110,13 @@ const handleLogout = async () => {
       </header>
 
       <div className="container mx-auto px-4 py-6 md:py-8">
-        <MetricCards selectedMonth={selectedMonth} transactions={transactions} />
+        <MetricCards
+          selectedMonth={selectedMonth}
+          transactions={transactions}
+          onNavigate={handleMetricNavigate}
+        />
 
-        <Tabs defaultValue="overview" className="mt-6">
+       <Tabs value={tab} onValueChange={(v) => setTab(v as "overview" | "transactions")} className="mt-6">
           <TabsList className="grid w-full max-w-md grid-cols-2">
             <TabsTrigger value="overview">Resumen</TabsTrigger>
             <TabsTrigger value="transactions">Transacciones</TabsTrigger>
@@ -117,7 +131,11 @@ const handleLogout = async () => {
               selectedMonth={selectedMonth}
               transactions={transactions}
               categories={categories}
-              onChanged={mutate}
+              onChanged={async () => {
+              await mutate() 
+            }}
+            typeFilter={typeFilter}                
+            onTypeFilterChange={setTypeFilter}
             />
           </TabsContent>
         </Tabs>

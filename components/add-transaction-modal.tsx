@@ -18,6 +18,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus } from "lucide-react"
 import type { Transaction } from "@/lib/data"
+import { BANKS } from "@/lib/banks"
+
 
 interface AddTransactionModalProps {
   onAdd: (transaction: Omit<Transaction, "id">) => void
@@ -36,6 +38,9 @@ export function AddTransactionModal({ onAdd, categories, onAddCategory }: AddTra
   // nueva categoría
   const [addingCat, setAddingCat] = useState(false)
   const [newCat, setNewCat] = useState("")
+
+  const [paymentType, setPaymentType] = useState<"cash" | "bank">("cash")
+  const [bank, setBank] = useState("")
 
   const list = useMemo(
     () => (type === "expense" ? categories.expense : categories.income),
@@ -68,6 +73,8 @@ export function AddTransactionModal({ onAdd, categories, onAddCategory }: AddTra
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault()
   if (!description || !amount || !category) return
+  if (paymentType === "bank" && !bank) return
+
 
   const res = await fetch("/api/transactions", {
     method: "POST",
@@ -78,6 +85,9 @@ export function AddTransactionModal({ onAdd, categories, onAddCategory }: AddTra
       amount: Number(amount),
       type,
       categoryName: category,
+      paymentType,
+      bank: paymentType === "bank" ? bank : null,
+
     }),
   })
 
@@ -95,6 +105,8 @@ export function AddTransactionModal({ onAdd, categories, onAddCategory }: AddTra
     amount: created.amount,
     type: created.type,
     category: created.category,
+    paymentType: created.paymentType,
+    bank: created.bank,
   })
 
   // Reset form
@@ -105,6 +117,9 @@ export function AddTransactionModal({ onAdd, categories, onAddCategory }: AddTra
   setAddingCat(false)
   setNewCat("")
   setOpen(false)
+  setPaymentType("cash")
+  setBank("")
+
 }
 
 
@@ -165,6 +180,42 @@ export function AddTransactionModal({ onAdd, categories, onAddCategory }: AddTra
             <Label htmlFor="date">Fecha</Label>
             <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="paymentType">Tipo de pago</Label>
+            <Select value={paymentType} onValueChange={(v) => {
+              const value = v as "cash" | "bank"
+              setPaymentType(value)
+              if (value === "cash") setBank("")
+            }}>
+              <SelectTrigger id="paymentType">
+                <SelectValue placeholder="Selecciona el tipo de pago" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">Efectivo</SelectItem>
+                <SelectItem value="bank">Bancarizado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {paymentType === "bank" && (
+            <div className="space-y-2">
+              <Label htmlFor="bank">Banco</Label>
+              <Select value={bank} onValueChange={setBank}>
+                <SelectTrigger id="bank">
+                  <SelectValue placeholder="Selecciona un banco" />
+                </SelectTrigger>
+                <SelectContent>
+                  {BANKS.map((b) => (
+                    <SelectItem key={b} value={b}>
+                      {b}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">

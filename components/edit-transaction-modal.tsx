@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { Transaction } from "@/lib/data"
+import { BANKS } from "@/lib/banks"
 
 function toISODate(ddmmyyyy: string) {
   const [dd, mm, yyyy] = ddmmyyyy.split("/")
@@ -32,6 +33,10 @@ export function EditTransactionModal({
   const [amount, setAmount] = useState(String(transaction.amount))
   const [date, setDate] = useState(toISODate(transaction.date)) // input date necesita YYYY-MM-DD
   const [category, setCategory] = useState(transaction.category)
+
+  const [paymentType, setPaymentType] = useState<"cash" | "bank">(transaction.paymentType ?? "cash")
+  const [bank, setBank] = useState(transaction.bank ?? "")
+
   const [saving, setSaving] = useState(false)
 
   const list = useMemo(() => (type === "expense" ? categories.expense : categories.income), [type, categories])
@@ -39,6 +44,7 @@ export function EditTransactionModal({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!description || !amount || !date || !category) return
+    if (paymentType === "bank" && !bank) return
 
     setSaving(true)
     try {
@@ -51,6 +57,8 @@ export function EditTransactionModal({
           amount: Number(amount),
           type,
           categoryName: category,
+          paymentType,
+          bank: paymentType === "bank" ? bank : null,
         }),
       })
       if (!res.ok) {
@@ -109,6 +117,47 @@ export function EditTransactionModal({
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-2">
+            <Label>Tipo de pago</Label>
+            <Select
+              value={paymentType}
+              onValueChange={(v) => {
+                const next = v as "cash" | "bank"
+                setPaymentType(next)
+                if (next === "cash") setBank("")
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona el tipo de pago" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">Efectivo</SelectItem>
+                <SelectItem value="bank">Bancarizado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* ✅ NUEVO: Banco condicional */}
+          {paymentType === "bank" && (
+            <div className="space-y-2">
+              <Label>Banco</Label>
+              <Select value={bank} onValueChange={setBank}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un banco" />
+                </SelectTrigger>
+                <SelectContent>
+                  {BANKS.map((b) => (
+                    <SelectItem key={b} value={b}>
+                      {b}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!bank && (
+                <p className="text-xs text-muted-foreground">Selecciona un banco para pagos bancarizados.</p>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
