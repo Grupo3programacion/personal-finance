@@ -19,6 +19,8 @@ import { Button } from "./ui/button"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
+
+
 export function FinanceDashboard() {
   const now = new Date()
   const [selectedMonth, setSelectedMonth] = useState(
@@ -30,12 +32,19 @@ export function FinanceDashboard() {
     fetcher
   )
 
+  const { data: months = [], mutate: mutateMonths } = useSWR<string[]>("/api/months", fetcher)
+
    // tab controlado + filtro global
   const [tab, setTab] = useState<"overview" | "transactions">("overview")
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all")
 
   const { data: expenseCats = [], mutate: mutateExpenseCats } = useSWR<string[]>(
   "/api/categories?type=expense",
+  fetcher
+)
+
+const { data: summary } = useSWR(
+  "/api/summary",
   fetcher
 )
 
@@ -69,6 +78,7 @@ const handleLogout = async () => {
     const [, mm, yyyy] = newTransaction.date.split("/")
     if (mm && yyyy) setSelectedMonth(`${mm}-${yyyy}`)
 
+    await mutate() // refresca transacciones del mes
     // refresca lista desde BD
     await mutate()
   }
@@ -99,7 +109,7 @@ const handleLogout = async () => {
               categories={categories}
               onAddCategory={onAddCategory}
             />
-              <MonthSelector value={selectedMonth} onChange={setSelectedMonth} transactions={transactions} />
+              <MonthSelector value={selectedMonth} onChange={setSelectedMonth} months={months} />
               <Button variant="outline" onClick={handleLogout} className="gap-2 bg-red-600 text-white hover:bg-red-700">
                 <LogOut className="size-4" />
                 Salir
@@ -114,6 +124,7 @@ const handleLogout = async () => {
           selectedMonth={selectedMonth}
           transactions={transactions}
           onNavigate={handleMetricNavigate}
+          summary={summary}
         />
 
        <Tabs value={tab} onValueChange={(v) => setTab(v as "overview" | "transactions")} className="mt-6">

@@ -1,4 +1,4 @@
-//src/components/metric-cards.tsx
+//components/metric-cards.tsx
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,10 +11,16 @@ interface MetricCardsProps {
   selectedMonth: string
   transactions: Transaction[]
   onNavigate: (filter: TypeFilter) => void 
+  summary?: {
+    totalIncomeAll: number
+    totalExpensesAll: number
+    balanceAll: number
+  }
 }
 
-export function MetricCards({ selectedMonth, transactions, onNavigate }: MetricCardsProps) {
+export function MetricCards({ selectedMonth, transactions, onNavigate, summary }: MetricCardsProps) {
   const data = getMonthData(selectedMonth, transactions)
+  const totalAll = summary?.balanceAll ?? 0
 
   const metrics = [
     {
@@ -41,10 +47,18 @@ export function MetricCards({ selectedMonth, transactions, onNavigate }: MetricC
       bgColor: "bg-destructive/10",
       filter: "expense" as TypeFilter,
     },
+    {
+      title: "Acumulado (Todos los meses)",
+      value: totalAll,
+      icon: Wallet,
+      color: totalAll >= 0 ? "text-success" : "text-destructive",
+      bgColor: totalAll >= 0 ? "bg-success/10" : "bg-destructive/10",
+      filter: null as TypeFilter | null,
+    },
   ]
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       {metrics.map((metric, index) => {
         const clickable = !!metric.filter
         return (

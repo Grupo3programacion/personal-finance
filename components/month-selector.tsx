@@ -1,13 +1,14 @@
+//components/month-selector.tsx
+
 "use client"
 
 import { useMemo } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { Transaction } from "@/lib/data"
 
 interface MonthSelectorProps {
   value: string // "MM-YYYY"
   onChange: (value: string) => void
-  transactions?: Transaction[] // <-- opcional para armar lista desde data (recomendado)
+  months: string[] // lista desde /api/months
 }
 
 function labelFromKey(key: string) {
@@ -18,42 +19,20 @@ function labelFromKey(key: string) {
   return `${name} ${yyyy}`
 }
 
-function monthKeyFromDate(dateStr: string) {
-  // date "dd/mm/yyyy"
-  const [, mm, yyyy] = dateStr.split("/")
-  return `${mm}-${yyyy}`
-}
-
-export function MonthSelector({ value, onChange, transactions = [] }: MonthSelectorProps) {
-  const months = useMemo(() => {
-    const set = new Set<string>()
-
-    // meses de transacciones
-    for (const t of transactions) {
-      const key = monthKeyFromDate(t.date)
-      if (key) set.add(key)
-    }
-
-    // asegura que el seleccionado siempre exista
-    if (value) set.add(value)
-
-    // ordenar asc por año/mes
-    return Array.from(set).sort((a, b) => {
-      const [ma, ya] = a.split("-")
-      const [mb, yb] = b.split("-")
-      const ka = `${ya}-${ma}`
-      const kb = `${yb}-${mb}`
-      return ka.localeCompare(kb)
-    })
-  }, [transactions, value])
+export function MonthSelector({ value, onChange, months }: MonthSelectorProps) {
+  const options = useMemo(() => {
+    const set = new Set(months ?? [])
+    if (value) set.add(value) 
+    return Array.from(set)
+  }, [months, value])
 
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="w-[160px]">
+      <SelectTrigger className="w-40">
         <SelectValue placeholder="Mes" />
       </SelectTrigger>
       <SelectContent>
-        {months.map((m) => (
+        {options.map((m) => (
           <SelectItem key={m} value={m}>
             {labelFromKey(m)}
           </SelectItem>
